@@ -1,10 +1,12 @@
 import axios from 'axios';
 import * as Keychain from 'react-native-keychain';
-const API_URL = 'https://api.propertyseller.com/api/v1/';
+const API_URL = 'https://v1-api.propertyseller.com/api/v1/';
 
 export const login = async (username, password) => {
   try {
-    const response = await axios.post(`${API_URL}auth/agent/login`, {
+    console.log("Entering credentials: username:",username);
+     console.log("Entering credentials: password:",password);
+    const response = await axios.post(`${API_URL}agent/login`, {
       username,
       password,
     });

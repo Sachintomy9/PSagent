@@ -5,6 +5,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { useDispatch, useSelector } from 'react-redux';
 import { loadAuthState } from '../redux/slices/AuthSlice';
 import SplashScreen from '../screens/SplashScreen';
+import BottomTabs from './BottomTabs';
 
 const Stack = createStackNavigator();
 
@@ -16,6 +17,8 @@ const AppNavigator = () => {
     dispatch(loadAuthState());
   }, [dispatch]);
 
+  console.log('Auth State - initializing:', initializing, 'isAuthenticated:', isAuthenticated);
+
   if (initializing) {
     return <SplashScreen />;
   }
@@ -24,7 +27,7 @@ const AppNavigator = () => {
       {isAuthenticated ? (
         // Authenticated Stack (show Bottom Tabs)
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Home" component={require('../screens/HomeScreen').default} />
+          <Stack.Screen name="Main" component={BottomTabs} />
         </Stack.Navigator>
       ) : (
         // Unauthenticated Stack

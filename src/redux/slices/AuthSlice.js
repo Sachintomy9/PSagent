@@ -12,8 +12,7 @@ export const loadAuthState = createAsyncThunk(
     const tokens = await getTokens();
 
     return {
-      isAuthenticated: !!tokens?.accessToken || guest,
-      isGuest: guest,
+      isAuthenticated: !!tokens?.accessToken,
     };
   }
 );

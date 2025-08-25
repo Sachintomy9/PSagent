@@ -49,17 +49,8 @@ const LoginScreen = () => {
       const { success, error } = await login(username, password);
       if (success) {
         console.log('Login success in LoginScreen');
-        setShowLoginSuccess(true);
+        /*setShowLoginSuccess(true);*/
         dispatch(loginUser());
-        navigation.reset({
-          index: 0,
-          routes: [{
-            name: 'Home',
-            params: {
-              showLoginSuccess: true,
-            },
-          }],
-        });
       } 
       if(error){
         setShowInvalid(true);
@@ -107,6 +98,7 @@ const LoginScreen = () => {
         <TextInput
           placeholder="Username"
           style={styles.input}
+          autoCapitalize='none'
           placeholderTextColor="#999"
           value={username}
           onChangeText={setUsername}
