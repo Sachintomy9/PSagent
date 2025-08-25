@@ -26,7 +26,7 @@ export const loginUser = createAsyncThunk('auth/loginUser', async (_, { dispatch
 // Logout user
 export const logout = createAsyncThunk('auth/logout', async (_, { dispatch }) => {
   await logoutService();
-  return;
+  await dispatch(loadAuthState());
 });
 
 const authSlice = createSlice({

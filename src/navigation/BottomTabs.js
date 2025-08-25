@@ -8,6 +8,7 @@ import HomeInactive from '../assets/svg/svgicons/bottomtabs/HomeInactive';
 import NotiActive from '../assets/svg/svgicons/bottomtabs/NotiActive';
 import NotiInactive from '../assets/svg/svgicons/bottomtabs/NotiInactive';
 import TermsInactive from '../assets/svg/svgicons/bottomtabs/TermsInactive';
+import TermsActive from '../assets/svg/svgicons/bottomtabs/TermsActive';
 import UserActive from '../assets/svg/svgicons/bottomtabs/UserActive';
 import UserInactive from '../assets/svg/svgicons/bottomtabs/UserInactive';
 
@@ -57,7 +58,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
             IconComponent = isFocused ? NotiActive : NotiInactive;
             break;
           case 'Terms':
-            IconComponent = isFocused ? NotiActive : TermsInactive;
+            IconComponent = isFocused ? TermsActive : TermsInactive;
             break;
           case 'Profile':
             IconComponent = isFocused ? UserActive : UserInactive;

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as Keychain from 'react-native-keychain';
+import api from './ApiClient';
 const API_URL = 'https://v1-api.propertyseller.com/api/v1/';
 
 export const login = async (username, password) => {
@@ -43,6 +44,39 @@ export const getTokens = async () => {
     return null;
   } catch (error) {
     console.error('❌ Keychain read error:', error);
+    return null;
+  }
+};
+
+// REFRESH ACCESS TOKEN: When JWT expires
+export const refreshToken = async () => {
+  try {
+    const tokens = await getTokens();
+    if (!tokens?.refreshToken) throw new Error('No refresh token found');
+
+    console.log('🔁 Attempting to refresh token...');
+    console.log("Current Refresh Token:", tokens.refreshToken);
+
+    // Use axios directly with refresh token as Bearer token
+    const response = await axios.post(`${API_URL}agent/refresh-token`, {}, {
+      headers: {
+        Authorization: `Bearer ${tokens.refreshToken}`,
+      },
+    });
+
+    const { token: accessToken, refreshToken: newRefreshToken } = response.data;
+
+    await Keychain.setGenericPassword('tokens', JSON.stringify({
+      accessToken,
+      refreshToken: newRefreshToken,
+    }));
+
+
+    console.log('✅ Token refreshed and stored successfully.');
+    return accessToken;
+  } catch (error) {
+    console.error(' Logging out:', error?.response?.data || error.message);
+    await logout();
     return null;
   }
 };
