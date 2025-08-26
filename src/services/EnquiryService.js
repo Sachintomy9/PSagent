@@ -80,3 +80,84 @@ export const getEnquiryStats = async () => {
     };
   }
 };
+
+export const updateEnquiryNote = async (enquiryId, notes, status ) => {
+  try {
+    const payload = {
+      enquiryId,
+      notes,
+      status
+    };
+
+    const response = await api.post('enquiry/change-status', payload);
+    
+    console.log('✅ Enquiry note updated successfully');
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message
+    };
+  } catch (error) {
+    const msg = error?.response?.data?.message || 'Failed to update enquiry note';
+    console.log('❌ Enquiry note update error:', msg);
+    return {
+      success: false,
+      error: msg,
+      data: null
+    };
+  }
+};
+
+export const updateEnquiryStatus = async (enquiryId, status) => {
+  try {
+    const payload = {
+      enquiryId,
+      status
+    };
+
+    const response = await api.post('enquiry/change-status', payload);
+    
+    console.log('✅ Enquiry status updated successfully');
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message
+    };
+  } catch (error) {
+    const msg = error?.response?.data?.message || 'Failed to update enquiry status';
+    console.log('❌ Enquiry status update error:', msg);
+    return {
+      success: false,
+      error: msg,
+      data: null
+    };
+  }
+};
+
+export const getNotifications = async (page = 1, limit = 20) => {
+  try {
+    const params = {
+      page,
+      limit
+    };
+
+    const response = await api.get('notifications/', { params });
+    
+    console.log('✅ Notifications fetched successfully');
+    return {
+      success: true,
+      data: response.data.data,
+      pagination: response.data.pagination,
+      message: response.data.message
+    };
+  } catch (error) {
+    const msg = error?.response?.data?.message || 'Failed to fetch notifications';
+    console.log('❌ Notifications fetch error:', msg);
+    return {
+      success: false,
+      error: msg,
+      data: [],
+      pagination: null
+    };
+  }
+};

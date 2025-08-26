@@ -3,6 +3,7 @@ import { Text, View, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import HomeActive from '../assets/svg/svgicons/bottomtabs/HomeActive';
 import HomeInactive from '../assets/svg/svgicons/bottomtabs/HomeInactive';
 import NotiActive from '../assets/svg/svgicons/bottomtabs/NotiActive';
@@ -23,6 +24,7 @@ const Tab = createBottomTabNavigator();
 // Custom Tab Bar Component with Safe Area
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
+  const { unreadCount } = useSelector((state) => state.notification);
   
   return (
     <View style={{ 
@@ -80,8 +82,32 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               paddingVertical: 5
             }}
           >
-            <View style={{ paddingTop: 5 }}>
+            <View style={{ paddingTop: 5, position: 'relative' }}>
               <IconComponent />
+              {/* Notification Badge */}
+              {route.name === 'Notification' && unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -2,
+                  right: -8,
+                  backgroundColor: '#000',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  paddingHorizontal: 6,
+                }}>
+                  <Text style={{
+                    color: '#fff',
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
             </View>
             <Text style={{ 
               fontSize: 12, 

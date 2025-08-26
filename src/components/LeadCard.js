@@ -1,15 +1,73 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
+import { Dropdown } from 'react-native-element-dropdown';
 import CallIcon from '../assets/svg/svgicons/Home/CallIcon';
 import PenIcon from '../assets/svg/svgicons/Home/PenIcon';
 import { fonts } from '../../styles/fonts';
 
-const LeadCard = ({ lead, onCall, onAddNote }) => {
+const LeadCard = ({ lead, onCall, onAddNote, onStatusChange }) => {
+  // Convert display status back to backend value
+  const getBackendStatus = (displayStatus) => {
+    switch(displayStatus) {
+      case 'Not Interested': return 'not interested';
+      case 'New': return 'interested';
+      case 'Pending': return 'pending';
+      case 'Closed': return 'closed';
+      case 'In Progress': return 'in_progress';
+      case 'Completed': return 'completed';
+      default: return displayStatus.toLowerCase();
+    }
+  };
+
+  const [selectedStatus, setSelectedStatus] = useState(getBackendStatus(lead.status));
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+
+  const leadStatusChange = [
+    {
+      label: 'Pending',
+      value: 'pending'
+    }, 
+    {
+      label: 'Closed',
+      value: 'closed'
+    }, 
+    {
+      label: "Interested",
+      value: "interested"
+    }, 
+    {
+      label: "Not Interested",
+      value: "not interested"
+    }
+  ];
+
+  const handleStatusChange = async (item) => {
+    try {
+      setSelectedStatus(item.value);
+      setIsDropdownVisible(false);
+      
+      // Call the parent callback with the new status
+      if (onStatusChange) {
+        await onStatusChange(lead.id, item.value);
+      }
+    } catch (error) {
+      // Reset to previous status if update fails
+      setSelectedStatus(getBackendStatus(lead.status));
+      Alert.alert('Error', 'Failed to update status');
+    }
+  };
+
+  const getStatusDisplayText = () => {
+    const statusItem = leadStatusChange.find(item => item.value === selectedStatus);
+    return statusItem ? statusItem.label : lead.status;
+  };
+
   return (
     <View style={styles.leadCard}>
       {/* Main Content Container */}
@@ -35,10 +93,25 @@ const LeadCard = ({ lead, onCall, onAddNote }) => {
         
         {/* Right side - Status and Action Buttons */}
         <View style={styles.rightContent}>
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>
-              {lead.status}
-            </Text>
+          <View style={styles.statusContainer}>
+            <Dropdown
+              style={styles.statusDropdown}
+              placeholderStyle={styles.statusText}
+              selectedTextStyle={styles.statusText}
+              data={leadStatusChange}
+              maxHeight={200}
+              labelField="label"
+              valueField="value"
+              placeholder={getStatusDisplayText()}
+              value={selectedStatus}
+              onChange={handleStatusChange}
+              renderRightIcon={() => (
+                <Text style={styles.dropdownArrow}>▼</Text>
+              )}
+              itemTextStyle={styles.dropdownItemText}
+              containerStyle={styles.dropdownContainer}
+              showsVerticalScrollIndicator={false}
+            />
           </View>
           
           <View style={styles.actionButtons}>
@@ -88,7 +161,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
   },
-  statusBadge: {
+  statusContainer: {
     backgroundColor: '#000',
     borderRadius: 5,
     height: 40,
@@ -97,10 +170,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 5,
   },
+  statusDropdown: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
   statusText: {
     fontSize: 12,
     color: '#fff',
     fontFamily: fonts.PoppinsMedium,
+    textAlign: 'center',
+  },
+  dropdownArrow: {
+    fontSize: 8,
+    color: '#fff',
+    marginLeft: 4,
+  },
+  dropdownContainer: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginTop: 5,
+  },
+  dropdownItemText: {
+    fontSize: 12,
+    fontFamily: fonts.PoppinsRegular,
+    color: '#333',
+  },
+  statusBadge: {
+    backgroundColor: '#000',
+    borderRadius: 5,
+    height: 40,
+    width: 125,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 5,
   },
   infoLabel: {
     fontSize: 13,

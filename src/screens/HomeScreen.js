@@ -15,13 +15,17 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { logout } from '../redux/slices/AuthSlice';
+import { fetchUnreadNotificationCount } from '../redux/slices/NotificationSlice';
 import { Dropdown } from 'react-native-element-dropdown';
 
 // Components
 import LeadCard from '../components/LeadCard';
+import AddNoteModal from '../components/popups/AddNoteModal';
+import ConfirmModal from '../components/popups/ConfirmModal';
+import InvalidInput from '../components/popups/InvalidInput';
 
 // Services
-import { getEnquiries, searchEnquiries, getEnquiryStats } from '../services/EnquiryService';
+import { getEnquiries, searchEnquiries, getEnquiryStats, updateEnquiryNote, updateEnquiryStatus } from '../services/EnquiryService';
 
 // Icons
 import SearchIcon from '../assets/svg/svgicons/Home/SearchIcon';
@@ -53,6 +57,16 @@ const HomeScreen = () => {
 
   const [selectedStatus, setSelectedStatus] = useState('All');
 
+  // Modal states
+  const [isAddNoteModalVisible, setIsAddNoteModalVisible] = useState(false);
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [noteSuccess, setNoteSuccess] = useState(false);
+
+  const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+
+  const [CallModalVisible, setCallModalVisible] = useState(false);
+
+  const [statusSuccess, setStatusSuccess] = useState(false);
 
   useEffect(() => {
     const fetchDevelopers = async () => {
@@ -115,11 +129,6 @@ const HomeScreen = () => {
         label: "Not Interested",
         value: "not interested"
     }];
-
-
-
-
-
 
 
 
@@ -224,11 +233,14 @@ const HomeScreen = () => {
         setCurrentPage(result.pagination.currentPage);
         setTotalPages(result.pagination.totalPages);
         setTotalRecords(result.pagination.totalRecords);
+        
+        // Refresh notification count when home data loads
+        dispatch(fetchUnreadNotificationCount());
       } else {
         Alert.alert('Error', result.error);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to load leads');
+      Alert.alert('Error', 'Failed to load leads', error);
       console.error('Load initial data error:', error);
     } finally {
       setIsLoading(false);
@@ -300,49 +312,127 @@ const HomeScreen = () => {
         filtered = filtered.filter(lead => lead.status === 'In Progress');
       }
     }
-
     // Only apply status filter if not searching
     if (!searchQuery.trim()) {
       setFilteredLeads(filtered);
     }
   };
 
+
+
+  /* Logout Modal */
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: () => dispatch(logout()) }
-      ]
-    );
+    setIsLogoutModalVisible(true);
   };
 
+  const handleConfirmLogout = () => {
+    setIsLogoutModalVisible(false);
+    dispatch(logout());
+  };
+
+  const handleCancelLogout = () => {
+    setIsLogoutModalVisible(false);
+  };
+
+
+
+  /* Call Modal */
   const handleCall = (lead) => {
-    Alert.alert(
-      'Call Lead',
-      `Do you want to call ${lead.name} at ${lead.number}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Call', 
-          onPress: () => {
-            Linking.openURL(`tel:${lead.number.replace(/\s+/g, '')}`);
-          }
-        }
-      ]
-    );
+    setSelectedLead(lead);
+    setCallModalVisible(true);
   };
 
-  const handleAddNote = (lead) => {
-    Alert.alert('Add Note', `Add note for ${lead.name}`);
+  const handleConfirmCall = () => {
+    setCallModalVisible(false);
+    Linking.openURL(`tel:${selectedLead.number.replace(/\s+/g, '')}`);
   };
+
+
+
+  /* Add Note Modal */
+  const handleAddNote = (lead) => {
+    setSelectedLead(lead);
+    setIsAddNoteModalVisible(true);
+  };
+
+  const handleSaveNote = async (lead, note) => {
+    try {
+      const result = await updateEnquiryNote(lead.id, note, 'not interested');
+      
+      if (result.success) {
+        setNoteSuccess(true);
+        // Refresh the leads data to show updated note
+        loadInitialData();
+      } else {
+        Alert.alert('Error', result.error || 'Failed to save note');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save note', error);
+      console.error('Save note error:', error);
+    }
+  };
+
+  const handleCloseNoteModal = () => {
+    setIsAddNoteModalVisible(false);
+    setSelectedLead(null);
+  };
+
+  const handleStatusChange = async (leadId, newStatus) => {
+    try {
+      const result = await updateEnquiryStatus(leadId, newStatus);
+      
+      if (result.success) {
+        // Transform status to match UI display format
+        const getDisplayStatus = (status) => {
+          switch(status) {
+            case 'not interested': return 'Not Interested';
+            case 'interested': return 'New';
+            case 'pending': return 'Pending';
+            case 'closed': return 'Closed';
+            case 'in_progress': return 'In Progress';
+            case 'completed': return 'Completed';
+            default: return status.charAt(0).toUpperCase() + status.slice(1);
+          }
+        };
+
+        const displayStatus = getDisplayStatus(newStatus);
+        
+        // Update the lead status in the local state
+        setLeads(prevLeads => 
+          prevLeads.map(lead => 
+            lead.id === leadId 
+              ? { ...lead, status: displayStatus }
+              : lead
+          )
+        );
+        
+        setFilteredLeads(prevLeads => 
+          prevLeads.map(lead => 
+            lead.id === leadId 
+              ? { ...lead, status: displayStatus }
+              : lead
+          )
+        );
+
+        setStatusSuccess(true);
+      } else {
+        Alert.alert('Error', result.error || 'Failed to update status');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update status');
+      console.error('Status update error:', error);
+    }
+  };
+
+
+
 
   const renderLeadCard = ({ item }) => (
     <LeadCard 
       lead={item} 
       onCall={handleCall}
       onAddNote={handleAddNote}
+      onStatusChange={handleStatusChange}
     />
   );
 
@@ -534,6 +624,46 @@ const HomeScreen = () => {
         style={styles.flatList}
         refreshing={isLoading}
         onRefresh={loadInitialData}
+      />
+
+      {/* Add Note Modal */}
+      <AddNoteModal
+        visible={isAddNoteModalVisible}
+        onClose={handleCloseNoteModal}
+        lead={selectedLead}
+        onSave={handleSaveNote}
+      />
+
+      <InvalidInput
+        visible={noteSuccess}
+        onClose={() => setNoteSuccess(false)}
+        heading={"Success"}
+        subheading={"Note saved successfully!"}
+      />
+
+      <InvalidInput
+        visible={statusSuccess}
+        onClose={() => setStatusSuccess(false)}
+        heading={"Success"}
+        subheading={"Status updated successfully!"}
+      />
+
+      {/* Logout Confirmation Modal */}
+      <ConfirmModal
+        visible={isLogoutModalVisible}
+        onClose={handleCancelLogout}
+        onYes={handleConfirmLogout}
+        heading="Logout"
+        subheading="Are you sure you want to logout?"
+      />
+
+      {/* Call Confirmation Modal */}
+      <ConfirmModal
+        visible={CallModalVisible}
+        onClose={() => setCallModalVisible(false)}
+        onYes={handleConfirmCall}
+        heading="Call"
+        subheading={selectedLead ? `Are you sure you want to call ${selectedLead.name} on ${selectedLead.number}?` : ''}
       />
     </SafeAreaView>
   );

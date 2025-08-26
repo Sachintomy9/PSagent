@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -6,18 +6,23 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  Alert,
   ActivityIndicator,
+  ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { logout } from '../redux/slices/AuthSlice';
 import { fetchProfileData } from '../redux/slices/ProfileSlice';
 import LogoutIcon from '../assets/svg/svgicons/Home/LogoutIcon';
+import ConfirmModal from '../components/popups/ConfirmModal';
 import { fonts } from '../../styles/fonts';
 
 const ProfileScreen = () => {
   const dispatch = useDispatch();
+  const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  
   const { 
     name, 
     image, 
@@ -52,18 +57,25 @@ const ProfileScreen = () => {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: () => dispatch(logout()) }
-      ]
-    );
+    setIsLogoutModalVisible(true);
   };
 
-  const handleRefresh = () => {
-    dispatch(fetchProfileData());
+  const handleConfirmLogout = () => {
+    setIsLogoutModalVisible(false);
+    dispatch(logout());
+  };
+
+  const handleCancelLogout = () => {
+    setIsLogoutModalVisible(false);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await dispatch(fetchProfileData());
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   if (isLoading) {
@@ -85,56 +97,76 @@ const ProfileScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your Profile</Text>
-        <TouchableOpacity onPress={handleRefresh}>
-          <Text style={styles.refreshText}>Refresh</Text>
-        </TouchableOpacity>
       </View>
 
-      {/* Profile Section */}
-      <View style={styles.profileSection}>
-        {/* Profile Picture */}
-        <View style={styles.profileImageContainer}>
-          {getProfileImageSource() ? (
-            <Image source={getProfileImageSource()} style={styles.profileImage} />
-          ) : (
-            <View style={styles.defaultProfileImage}>
-              <Text style={styles.profileInitial}>{getInitials(name)}</Text>
-            </View>
-          )}
+      {/* Scrollable Content with Pull to Refresh */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#000']} // Android
+            tintColor="#000" // iOS
+          />
+        }
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Profile Section */}
+        <View style={styles.profileSection}>
+          {/* Profile Picture */}
+          <View style={styles.profileImageContainer}>
+            {getProfileImageSource() ? (
+              <Image source={getProfileImageSource()} style={styles.profileImage} />
+            ) : (
+              <View style={styles.defaultProfileImage}>
+                <Text style={styles.profileInitial}>{getInitials(name)}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Name */}
+          <Text style={styles.userName}>{name || 'Jhon Doe'}</Text>
+
+          {/* Logout Button */}
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <LogoutIcon />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Name */}
-        <Text style={styles.userName}>{name || 'Jhon Doe'}</Text>
+        {/* Stats Cards */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Started Date : </Text>
+            <Text style={styles.statValue}>{formatStartDate(createdAt)}</Text>
+          </View>
 
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <LogoutIcon />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Total Leads : </Text>
+            <Text style={styles.statValue}>{allLeadsCount}</Text>
+          </View>
 
-      {/* Stats Cards */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Started Date : </Text>
-          <Text style={styles.statValue}>{formatStartDate(createdAt)}</Text>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>No Of Closed Deals : </Text>
+            <Text style={styles.statValue}>{closedLeadsCount}</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Commission : </Text>
+            <Text style={styles.statValue}>{commission || '0'} AED</Text>
+          </View>
         </View>
+      </ScrollView>
 
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Total Leads : </Text>
-          <Text style={styles.statValue}>{allLeadsCount}</Text>
-        </View>
-
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>No Of Closed Deals : </Text>
-          <Text style={styles.statValue}>{closedLeadsCount}</Text>
-        </View>
-
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Commission : </Text>
-          <Text style={styles.statValue}>{commission || '1.2M'} AED</Text>
-        </View>
-      </View>
+      {/* Logout Confirmation Modal */}
+      <ConfirmModal
+        visible={isLogoutModalVisible}
+        onClose={handleCancelLogout}
+        onYes={handleConfirmLogout}
+        heading="Logout"
+        subheading="Are you sure you want to logout?"
+      />
     </SafeAreaView>
   );
 };
@@ -160,6 +192,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    alignSelf: 'center',
     paddingVertical: 16,
   },
   headerTitle: {
@@ -167,10 +200,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.PoppinsSemiBold,
     color: '#000',
   },
-  refreshText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontFamily: fonts.PoppinsRegular,
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   profileSection: {
     alignItems: 'center',

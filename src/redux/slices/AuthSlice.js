@@ -4,7 +4,8 @@ import {
   getTokens,
   logout as logoutService,
 } from '../../services/AuthService';
-import { setUserInfo, fetchProfileData, clearProfileData } from './ProfileSlice';
+import { setUserInfo, fetchProfileData, clearProfileData, loadProfileFromStorage } from './ProfileSlice';
+import { clearNotificationDataOnLogout, resetNotificationState } from './NotificationSlice';
 
 // Async thunk to load auth state
 export const loadAuthState = createAsyncThunk(
@@ -13,7 +14,10 @@ export const loadAuthState = createAsyncThunk(
     const tokens = await getTokens();
 
     if (tokens?.accessToken) {
-      // If authenticated, fetch profile data
+      // If authenticated, load profile data from storage first (for immediate access)
+      await dispatch(loadProfileFromStorage());
+      
+      // Then fetch fresh profile data from API (for updated counts)
       dispatch(fetchProfileData());
     }
 
@@ -41,9 +45,21 @@ export const loginUser = createAsyncThunk(
 );
 
 // Logout user
-export const logout = createAsyncThunk('auth/logout', async (_, { dispatch }) => {
+export const logout = createAsyncThunk('auth/logout', async (_, { dispatch, getState }) => {
+  // Get current username before clearing profile data
+  const currentUsername = getState().profile.username;
+  
+  // Clear notification data for current user
+  if (currentUsername) {
+    await dispatch(clearNotificationDataOnLogout(currentUsername));
+  }
+  
+  // Reset notification state
+  dispatch(resetNotificationState());
+  
+  // Clear profile data and logout
   await logoutService();
-  dispatch(clearProfileData()); // Clear profile data on logout
+  dispatch(clearProfileData());
   await dispatch(loadAuthState());
 });
 
