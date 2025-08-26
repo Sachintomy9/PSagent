@@ -9,6 +9,8 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Dropdown, MultiSelect } from 'react-native-element-dropdown'; 
@@ -262,8 +264,17 @@ const SignupScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       <Text style={styles.title}>Signup</Text>
       <Text style={styles.subtitle}>Please Enter the details to create an account</Text>
@@ -371,6 +382,7 @@ const SignupScreen = ({ navigation }) => {
             onChange={item => {
               setNationality(item.value);
             }}
+            itemTextStyle={{ fontFamily: fonts.PoppinsRegular, fontSize: 14 }}
           />
         )}
       </View>
@@ -398,6 +410,7 @@ const SignupScreen = ({ navigation }) => {
               setSelectedLanguages(item);
             }}
             selectedStyle={styles.selectedStyle}
+            itemTextStyle={{ fontFamily: fonts.PoppinsRegular, fontSize: 14 }}
           />
         )}
       </View>
@@ -442,6 +455,7 @@ const SignupScreen = ({ navigation }) => {
         )}
       </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* InvalidInput Modal */}
       <InvalidInput
@@ -468,11 +482,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   container: {
     flexGrow: 1,
     backgroundColor: '#fff',
     padding: 24,
-    justifyContent: 'center',
+    paddingBottom: 40, // Extra padding at bottom for keyboard
   },
   title: {
     fontSize: 28,
@@ -555,7 +572,8 @@ const styles = StyleSheet.create({
   loginText: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 32,
+    marginBottom: 22,
+    marginTop: 10,
     fontFamily: fonts.PoppinsMedium,
   },
   signupButton: {

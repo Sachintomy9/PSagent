@@ -16,6 +16,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { logout } from '../redux/slices/AuthSlice';
 import { fetchUnreadNotificationCount } from '../redux/slices/NotificationSlice';
+import { fetchProfileData } from '../redux/slices/ProfileSlice';
 import { Dropdown } from 'react-native-element-dropdown';
 
 // Components
@@ -134,8 +135,8 @@ const HomeScreen = () => {
 
   // Stats - use profile data from Redux
   const stats = {
-    totalLeads: allLeadsCount || totalRecords,
-    newLeads: newLeadsCount
+    totalLeads: allLeadsCount || 0,
+    newLeads: newLeadsCount || 0
   };
 
   const statusFilters = ['All', 'New Leads', 'On Progress'];
@@ -236,6 +237,9 @@ const HomeScreen = () => {
         
         // Refresh notification count when home data loads
         dispatch(fetchUnreadNotificationCount());
+        
+        // Refresh profile data to get updated lead counts
+        dispatch(fetchProfileData());
       } else {
         Alert.alert('Error', result.error);
       }
