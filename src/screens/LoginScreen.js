@@ -46,24 +46,18 @@ const LoginScreen = () => {
     if (validateInputs()) {
        setIsLoading(true); // show loader
       try {
-      const { success, error } = await login(username, password);
+      const { success, error, user } = await login(username, password);
       if (success) {
         console.log('Login success in LoginScreen');
-        /*setShowLoginSuccess(true);*/
-        dispatch(loginUser());
+        // Pass user data to loginUser action
+        dispatch(loginUser({ user }));
       } 
       if(error){
         setShowInvalid(true);
       }
     } catch (error) {
           console.error('Login Failed:', error.response?.data || error.message);
-          
-          if (error.response && error.response.data) {
-            Alert.alert('Error', error.response.data.message || 'Login failed');
-          } else {
-            Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-          }
-
+          setShowInvalid(true);
         }
         finally {
       setIsLoading(false); // hide loader regardless of success or failure

@@ -12,7 +12,7 @@ export const login = async (username, password) => {
       password,
     });
 
-    const { accessToken, refreshToken } = response.data;
+    const { accessToken, refreshToken, user } = response.data;
 
     await Keychain.setGenericPassword('tokens', JSON.stringify({
       accessToken,
@@ -20,7 +20,10 @@ export const login = async (username, password) => {
     }));
 
     console.log('🔐 Tokens stored after login.');
-    return { success: true };
+    return { 
+      success: true, 
+      user: user // Return user data for profile setup
+    };
   } catch (error) {
     const msg = error?.response?.data?.message || 'Login failed';
     console.log('❌ Login error:', msg);

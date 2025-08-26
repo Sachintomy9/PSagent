@@ -9,11 +9,13 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
-  Linking
+  Linking,
+  ScrollView
 } from 'react-native';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { logout } from '../redux/slices/AuthSlice';
+import { Dropdown } from 'react-native-element-dropdown';
 
 // Components
 import LeadCard from '../components/LeadCard';
@@ -38,18 +40,94 @@ const HomeScreen = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   
+  // Get profile data from Redux
+  const { name, allLeadsCount, newLeadsCount } = useSelector((state) => state.profile);
+  
   // Filter states
-  const [selectedEmirate, setSelectedEmirate] = useState('Emirates');
-  const [selectedCity, setSelectedCity] = useState('City');
-  const [selectedCategory, setSelectedCategory] = useState('Category');
-  const [selectedType, setSelectedType] = useState('Type');
+  const [selectedDeveloper, setSelectedDeveloper] = useState(null);
+  const [developers, setDevelopers] = useState([]);
+  const [loadingDevelopers, setLoadingDevelopers] = useState(false);
+
+  const [selectedProjectType, setSelectedProjectType] = useState('');
+  const [selectedLeadStatus, setSelectedLeadStatus] = useState('');
+
   const [selectedStatus, setSelectedStatus] = useState('All');
 
-  // Stats
-  const [stats, setStats] = useState({
-    totalLeads: 0,
-    newLeads: 0
-  });
+
+  useEffect(() => {
+    const fetchDevelopers = async () => {
+      try {
+        setLoadingDevelopers(true);
+        const res = await fetch('https://v1-api.propertyseller.com/api/v1/developers/names');
+        const data = await res.json();
+        if (data.success) {
+          const formatted = data.data.map((item) => ({
+            label: item.name,
+            value: item._id,
+          }));
+          
+          // Add "All" option at the beginning
+          const developersWithAll = [
+            { label: 'All Developers', value: '' },
+            ...formatted
+          ];
+          
+          setDevelopers(developersWithAll);
+        }
+      } catch (error) {
+        console.error('Error fetching developers:', error);
+      } finally {
+        setLoadingDevelopers(false);
+      }
+    };
+    fetchDevelopers();
+  }, []);
+
+  const projectTypeOptions = [
+    { value: '', label: 'All Projects' },
+    { value: 'resale-residential', label: 'Resale Residential' },
+    { value: 'commercial-residential', label: 'Commercial & Residential' },
+    { value: 'project-commercial', label: 'Project Commercial' },
+    { value: 'project-residential', label: 'Project Residential' },
+    { value: 'resale-commercial', label: 'Resale Commercial' },
+    { value: 'secondary-residential', label: 'Secondary Residential' },
+    { value: 'secondary-commercial', label: 'Secondary Commercial' },
+    { value: 'land-residential', label: 'Land Residential' },
+    { value: 'land-commercial', label: 'Land Commercial' },
+  ];
+
+  const leadStatusOptions = [
+    {
+      label: 'All Statuses',
+      value: ''
+    },
+    {
+        label: 'Pending',
+        value: 'pending'
+
+    }, {
+        label: 'Closed',
+        value: 'closed'
+    }, {
+        label: "Interested",
+        value: "interested"
+    }, {
+        label: "Not Interested",
+        value: "not interested"
+    }];
+
+
+
+
+
+
+
+
+  // Stats - use profile data from Redux
+  const stats = {
+    totalLeads: allLeadsCount || totalRecords,
+    newLeads: newLeadsCount
+  };
 
   const statusFilters = ['All', 'New Leads', 'On Progress'];
 
@@ -88,7 +166,6 @@ const HomeScreen = () => {
 
   useEffect(() => {
     loadInitialData();
-    loadStats();
   }, []);
 
   useEffect(() => {
@@ -107,17 +184,38 @@ const HomeScreen = () => {
     filterLeadsByStatus();
   }, [selectedStatus, leads]);
 
-  const loadStats = async () => {
-    const result = await getEnquiryStats();
-    if (result.success) {
-      setStats(result.data);
+  useEffect(() => {
+    // Reload data when project type changes
+    if (selectedProjectType) {
+      loadInitialData();
     }
-  };
+  }, [selectedProjectType]);
+
+  useEffect(() => {
+    // Reload data when developer changes (including when "All" is selected)
+    loadInitialData();
+  }, [selectedDeveloper]);
+
+  useEffect(() => {
+    // Reload data when lead status changes
+    loadInitialData();
+  }, [selectedLeadStatus]);
 
   const loadInitialData = async () => {
     setIsLoading(true);
     try {
-      const result = await getEnquiries(1, 20);
+      const filters = {};
+      if (selectedProjectType) {
+        filters.projectStatus = selectedProjectType;
+      }
+      if (selectedDeveloper && selectedDeveloper !== '') {
+        filters.developers = selectedDeveloper;
+      }
+      if (selectedLeadStatus && selectedLeadStatus !== '') {
+        filters.status = selectedLeadStatus;
+      }
+      
+      const result = await getEnquiries(1, 20, filters);
       
       if (result.success) {
         const transformedLeads = result.data.map(transformEnquiryToLead);
@@ -126,11 +224,6 @@ const HomeScreen = () => {
         setCurrentPage(result.pagination.currentPage);
         setTotalPages(result.pagination.totalPages);
         setTotalRecords(result.pagination.totalRecords);
-        
-        // Update stats based on actual data
-        const totalLeads = result.pagination.totalRecords;
-        const newLeads = transformedLeads.filter(lead => lead.status === 'New').length;
-        setStats({ totalLeads, newLeads });
       } else {
         Alert.alert('Error', result.error);
       }
@@ -148,7 +241,18 @@ const HomeScreen = () => {
     setIsLoadingMore(true);
     try {
       const nextPage = currentPage + 1;
-      const result = await getEnquiries(nextPage, 20);
+      const filters = {};
+      if (selectedProjectType) {
+        filters.projectStatus = selectedProjectType;
+      }
+      if (selectedDeveloper && selectedDeveloper !== '') {
+        filters.developers = selectedDeveloper;
+      }
+      if (selectedLeadStatus && selectedLeadStatus !== '') {
+        filters.status = selectedLeadStatus;
+      }
+      
+      const result = await getEnquiries(nextPage, 20, filters);
       
       if (result.success) {
         const transformedLeads = result.data.map(transformEnquiryToLead);
@@ -280,12 +384,12 @@ const HomeScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>Hi, Jhon Doe</Text>
+        <Text style={styles.greeting}>Hi, {name || 'User'}</Text>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
           <LogoutIcon />
@@ -309,11 +413,11 @@ const HomeScreen = () => {
 
       {/* Statistics Cards */}
       <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { backgroundColor: '#F0F0F0', borderWidth: 1, borderColor: '#DEDEDE', elevation: 2 }]}>
           <Text style={styles.statNumber}>{stats.totalLeads}</Text>
           <Text style={styles.statLabel}>Total Leads</Text>
         </View>
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { elevation: 2 }]}>
           <Text style={styles.statNumber}>{stats.newLeads}</Text>
           <Text style={styles.statLabel}>New Leads</Text>
         </View>
@@ -321,31 +425,79 @@ const HomeScreen = () => {
 
       {/* Filter Dropdowns Row */}
       <View style={styles.filterRow}>
-        <TouchableOpacity style={styles.filterDropdown}>
-          <Text style={styles.filterDropdownText}>{selectedEmirate}</Text>
-          <Text style={styles.dropdownArrow}>▼</Text>
-        </TouchableOpacity>
         
-        <TouchableOpacity style={styles.filterDropdown}>
-          <Text style={styles.filterDropdownText}>{selectedCity}</Text>
-          <Text style={styles.dropdownArrow}>▼</Text>
-        </TouchableOpacity>
+        <Dropdown
+          style={[styles.filterDropdown, { width: '100%' }]}
+          placeholderStyle={styles.filterDropdownText}
+          selectedTextStyle={[styles.filterDropdownText, { color: '#000' }]}
+          data={projectTypeOptions}
+          maxHeight={300}
+          labelField="label"
+          valueField="value"
+          placeholder="Project Type"
+          value={selectedProjectType}
+          onChange={item => {
+            setSelectedProjectType(item.value);
+          }}
+          renderRightIcon={() => (
+            <Text style={styles.dropdownArrow}>▼</Text>
+          )}
+          itemTextStyle={{ fontFamily: fonts.PoppinsRegular, fontSize: 14 }}
+        />
       </View>
 
       <View style={styles.filterRow}>
-        <TouchableOpacity style={styles.filterDropdown}>
-          <Text style={styles.filterDropdownText}>{selectedCategory}</Text>
-          <Text style={styles.dropdownArrow}>▼</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.filterDropdown}>
-          <Text style={styles.filterDropdownText}>{selectedType}</Text>
-          <Text style={styles.dropdownArrow}>▼</Text>
-        </TouchableOpacity>
+        <Dropdown
+          style={styles.filterDropdown}
+          placeholderStyle={styles.filterDropdownText}
+          selectedTextStyle={[styles.filterDropdownText, { color: '#000' }]}
+          data={developers}
+          maxHeight={300}
+          labelField="label"
+          valueField="value"
+          placeholder={loadingDevelopers ? "Loading developers..." : "Select Developer"}
+          value={selectedDeveloper}
+          onChange={item => {
+            setSelectedDeveloper(item.value);
+          }}
+          renderRightIcon={() => (
+            loadingDevelopers ? (
+              <ActivityIndicator size="small" color="#000" />
+            ) : (
+              <Text style={styles.dropdownArrow}>▼</Text>
+            )
+          )}
+          disable={loadingDevelopers}
+          itemTextStyle={{ fontFamily: fonts.PoppinsRegular, fontSize: 14 }}
+        />
+  
+        <Dropdown
+          style={styles.filterDropdown}
+          placeholderStyle={styles.filterDropdownText}
+          selectedTextStyle={[styles.filterDropdownText, { color: '#000' }]}
+          data={leadStatusOptions}
+          maxHeight={300}
+          labelField="label"
+          valueField="value"
+          placeholder="Lead Status"
+          value={selectedLeadStatus}
+          onChange={item => {
+            setSelectedLeadStatus(item.value);
+          }}
+          renderRightIcon={() => (
+            <Text style={styles.dropdownArrow}>▼</Text>
+          )}
+          itemTextStyle={{ fontFamily: fonts.PoppinsRegular, fontSize: 14 }}
+        />
       </View>
 
       {/* Status Filters */}
-      <View style={styles.statusFilterContainer}>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.statusFilterScrollView}
+        contentContainerStyle={styles.statusFilterContent}
+      >
         {statusFilters.map((status) => (
           <TouchableOpacity 
             key={status}
@@ -363,7 +515,7 @@ const HomeScreen = () => {
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       {/* Leads List */}
       <FlatList
@@ -391,7 +543,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
   },
   loadingContainer: {
     flex: 1,
@@ -423,9 +575,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 5,
     paddingHorizontal: 12,
-    marginBottom: 16,
+    marginBottom: 10,
     height: 48,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -448,37 +600,36 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 10,
   },
   statCard: {
-    backgroundColor: '#E8E8E8',
-    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderRadius: 6,
     padding: 20,
-    width: '48%',
+    width: '49%',
     alignItems: 'center',
   },
   statNumber: {
     fontSize: 32,
     fontFamily: fonts.PoppinsBold,
     color: '#000',
-    marginBottom: 4,
   },
   statLabel: {
     fontSize: 14,
     color: '#666',
-    fontFamily: fonts.PoppinsRegular,
+    fontFamily: fonts.PoppinsMedium,
   },
   filterRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   filterDropdown: {
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 6,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    width: '48%',
+    width: '49%',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -497,22 +648,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
-  statusFilterContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 4,
+  statusFilterScrollView: {
+    marginBottom: 10,
+    maxHeight: 36,
+  },
+  statusFilterContent: {
+    paddingHorizontal: 4,
+    gap: 5,
   },
   statusFilter: {
-    flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    paddingHorizontal: 16,
+    borderRadius: 15,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#000',
     alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+    height: 36,
   },
   activeStatusFilter: {
     backgroundColor: '#000',
+    borderColor: '#000',
   },
   statusFilterText: {
     fontSize: 12,
@@ -525,9 +683,10 @@ const styles = StyleSheet.create({
   },
   flatList: {
     flex: 1,
+    marginBottom: 10,
   },
   listContainer: {
-    paddingBottom: 20,
+    paddingBottom: 10
   },
   emptyListContainer: {
     flexGrow: 1,

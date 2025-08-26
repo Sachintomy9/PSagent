@@ -4,12 +4,18 @@ import {
   getTokens,
   logout as logoutService,
 } from '../../services/AuthService';
+import { setUserInfo, fetchProfileData, clearProfileData } from './ProfileSlice';
 
 // Async thunk to load auth state
 export const loadAuthState = createAsyncThunk(
   'auth/loadAuthState',
   async (_, { dispatch }) => {
     const tokens = await getTokens();
+
+    if (tokens?.accessToken) {
+      // If authenticated, fetch profile data
+      dispatch(fetchProfileData());
+    }
 
     return {
       isAuthenticated: !!tokens?.accessToken,
@@ -18,14 +24,26 @@ export const loadAuthState = createAsyncThunk(
 );
 
 // Async thunk to login (re-triggers auth state load)
-export const loginUser = createAsyncThunk('auth/loginUser', async (_, { dispatch }) => {
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  await dispatch(loadAuthState());
-});
+export const loginUser = createAsyncThunk(
+  'auth/loginUser', 
+  async (userData, { dispatch }) => {
+    // Set user info in profile slice if provided
+    if (userData?.user) {
+      dispatch(setUserInfo(userData.user));
+    }
+    
+    // Fetch additional profile data (lead counts)
+    dispatch(fetchProfileData());
+    
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    await dispatch(loadAuthState());
+  }
+);
 
 // Logout user
 export const logout = createAsyncThunk('auth/logout', async (_, { dispatch }) => {
   await logoutService();
+  dispatch(clearProfileData()); // Clear profile data on logout
   await dispatch(loadAuthState());
 });
 
